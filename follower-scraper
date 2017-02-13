@@ -1,0 +1,73 @@
+"""
+http://stackoverflow.com/questions/31000178/how-to-get-large-list-of-followers-tweepy
+#todo: upgrade this to read usernames from a file.
+#todo: write users to file, search users for interests, locations etc.
+#todo: add log file functions to record triggers of wait_on_rate_limit & error messages.
+#potential upgrade - have cursor iterate over pages then individually iterate on items
+"""
+import csv
+import time
+import tweepy
+
+
+accountvar = raw_input("Which account would you like to scrape the followers of? Add only the part after twitter.com/")
+
+
+consumer_key = ""
+consumer_secret = ""
+access_key = ""
+access_secret = ""
+
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_key, access_secret)
+api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
+
+print "scraping the followers of "+accountvar
+
+users = tweepy.Cursor(api.followers, screen_name=accountvar, count=200).items()
+count = 0
+errorCount=0
+
+
+outputfilecsv = accountvar+"followers.csv"
+fc = csv.writer(open(outputfilecsv, 'wb'))
+fc.writerow(["screen_name","followers_count","statuses_count","location","geo_enabled"])
+
+while True:
+    try:
+        user = next(users)
+        count += 1
+        if count % 1000 == 0:
+            print("Count is:" + str(count))
+        #use count-break during dev to avoid twitter restrictions
+        #if (count>10):
+        #    break
+    except tweepy.TweepError:
+        #catches TweepError when rate limiting occurs, sleeps, then restarts.
+        #print("Time at rate limit is: " + time.strftime("%I:%M:%S")
+        time.sleep(60*15)
+        user = next(users)
+    except StopIteration:
+        break
+    try:
+        #print "@" + user.screen_name + " has " + str(user.followers_count) +\
+              #" followers, has made "+str(user.statuses_count)+" tweets and location=" +\
+              #user.location+" geo_enabled="+str(user.geo_enabled)+" count="+str(count)
+        fc.writerow([user.screen_name, str(user.followers_count), str(user.statuses_count), user.location, str(user.geo_enabled)])
+    except UnicodeEncodeError:
+        errorCount += 1
+        #print "UnicodeEncodeError; errorCount ="+str(errorCount)
+
+#apparently don't need to close csv.writer.
+print "completed, errorCount ="+str(errorCount)+" total users="+str(count)
+
+
+"""
+#refer http://docs.tweepy.org/en/v3.2.0/api.html#API
+http://docs.tweepy.org/en/v3.5.0/api.html?highlight=tweeperror#TweepError
+NB: RateLimitError inherits TweepError.
+NB: possibly makes the sleep redundant but leave until verified.
+http://docs.tweepy.org/en/v3.2.0/api.html#API  wait_on_rate_limit & wait_on_rate_limit_notify
+"""
+Contact GitHub API Training Shop Blog About
+© 2017 GitHub, Inc. Terms Privacy Security Status Help
